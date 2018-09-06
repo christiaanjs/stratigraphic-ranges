@@ -99,7 +99,7 @@ public class SRangesMixedBirthDeathModel extends SRangesBirthDeathModel {
                         } else { // Non-stratigraphic range branch above
                             logPost += Math.log(psi) + log_q(node.getHeight(), c1, c2) + log_p0s(node.getHeight(), c1, c2);
                         }
-                    } else { // Contemporary leaf - why times 4?
+                    } else {
                         logPost += Math.log(4*rho);
                     }
                 }
@@ -116,7 +116,7 @@ public class SRangesMixedBirthDeathModel extends SRangesBirthDeathModel {
                     }
                 } else { // Speciation event
                     logPost += Math.log(lambda) - log_q(node.getHeight(), c1, c2);
-                    logPost += mixedTree.getNodeIsSymmetric(node) ? beta : (1 - beta);
+                    logPost += mixedTree.getNodeIsSymmetric(node) ? Math.log(2) + beta : (1 - beta); // Marginalise orientation
                 }
             }
         }
