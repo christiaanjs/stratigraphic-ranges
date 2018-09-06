@@ -22,20 +22,20 @@ import sranges.StratigraphicRange;
         "Bayesian total-evidence dating under the fossilized birth-death model with stratigraphic ranges.")
 public class SRangesBirthDeathModel extends SABirthDeathModel {
 
-    private double q_tilde(double t, double c1, double c2) {
-        return Math.sqrt(Math.exp(t*(lambda + mu + psi))*q(t,c1,c2));
+    protected double q_tilde(double t, double c1, double c2) {
+        return Math.sqrt(Math.exp(t*(lambda + mu + psi))*q(t,c1,c2)); // TODO: Should have negatives?
     }
 
-    private double log_q_tilde(double t, double c1, double c2) {
+    protected double log_q_tilde(double t, double c1, double c2) {
         return 0.5*(t*(lambda + mu + psi) + log_q(t,c1,c2));
     }
 
-    private double log_lambda_times_int_limits_p(double tOld, double tYoung, double c1, double c2) {
+    protected double log_lambda_times_int_limits_p(double tOld, double tYoung, double c1, double c2) {
         return Math.log((lambda+mu+psi-c1)*(tOld - tYoung) + 2*Math.log(Math.exp(-c1*tYoung)*(1-c2)+(1+c2)) -
                 2*Math.log(Math.exp(-c1*tOld)*(1-c2)+(1+c2))) - Math.log(2);
     }
 
-    private Node findAncestralRangeLastNode(Node node) {
+    protected Node findAncestralRangeLastNode(Node node) {
         Node parent = node.getParent();
         if (parent == null) {
             return parent;
