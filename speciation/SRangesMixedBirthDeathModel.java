@@ -21,21 +21,21 @@ public class SRangesMixedBirthDeathModel extends SRangesBirthDeathModel {
 
     @Override
     public void updateParameters(){
+        super.updateParameters();
         lambda_a = anageneticSpeciationRate.get().getValue();
         beta = symmetricSpeciationProbability.get().getValue();
     }
 
     @Override
-    protected double q_tilde(double t, double c1, double c2) {
-        return Math.exp(-(lambda_a + beta * (lambda + mu + psi))*t)*Math.pow(super.q_tilde(t, c1, c2), 1 - beta);
+    protected double q_tilde(double t, double c1, double c2) { // Reciprocal from paper
+        return Math.exp((lambda_a + beta * (lambda + mu + psi))*t)*Math.pow(super.q_tilde(t, c1, c2), 1 - beta);
     }
 
     @Override
     protected double log_q_tilde(double t, double c1, double c2) {
-        return -(lambda_a + beta * (lambda + mu + psi))*t + (1 - beta)*super.log_q_tilde(t, c1, c2);
+        return (lambda_a + beta * (lambda + mu + psi))*t + (1 - beta)*super.log_q_tilde(t, c1, c2);
     }
 
-    // TODO: update parameters
 
     @Override
     public double calculateTreeLogLikelihood(TreeInterface tree)
@@ -94,9 +94,9 @@ public class SRangesMixedBirthDeathModel extends SRangesBirthDeathModel {
                 if  (!node.isDirectAncestor())  {
                     if (node.getHeight() > 0.000000000005 || rho == 0.) { // Fossil leaf
                         Node fossilParent = node.getParent();
-                        if (mixedTree.belongToSameSRange(i, fossilParent.getNr())) { // Stratigraphic range branch
+                        if (mixedTree.belongToSameSRange(i, fossilParent.getNr())) { // Stratigraphic range branch above
                             logPost += Math.log(psi) + log_q_tilde(node.getHeight(), c1, c2) + log_p0s(node.getHeight(), c1, c2);
-                        } else { // Non-stratigraphic range branch
+                        } else { // Non-stratigraphic range branch above
                             logPost += Math.log(psi) + log_q(node.getHeight(), c1, c2) + log_p0s(node.getHeight(), c1, c2);
                         }
                     } else { // Contemporary leaf - why times 4?

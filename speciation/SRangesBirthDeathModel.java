@@ -23,7 +23,7 @@ import sranges.StratigraphicRange;
 public class SRangesBirthDeathModel extends SABirthDeathModel {
 
     protected double q_tilde(double t, double c1, double c2) {
-        return Math.sqrt(Math.exp(t*(lambda + mu + psi))*q(t,c1,c2)); // TODO: Should have negatives?
+        return Math.sqrt(Math.exp(t*(lambda + mu + psi))*q(t,c1,c2));
     }
 
     protected double log_q_tilde(double t, double c1, double c2) {
