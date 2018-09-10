@@ -2,6 +2,7 @@ package operators;
 
 import beast.evolution.tree.Node;
 import beast.evolution.tree.SRMixedTree;
+import beast.evolution.tree.SRTree;
 import beast.evolution.tree.Tree;
 import beast.util.Randomizer;
 import sranges.StratigraphicRange;
@@ -24,16 +25,7 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
 
         //double x0 = 10;
 
-        double oldMinAge,
-                newMinAge,
-                newRange,
-                oldRange,
-                newAge,
-                fHastingsRatio,
-                dimensionCoefficient,
-                orientationCoefficient,
-                symmetryCoefficient;
-
+        double oldMinAge, newMinAge, newRange, oldRange, newAge, fHastingsRatio, dimensionCoefficient;
         int newDimension, oldDimension;
 
         // choose a random node avoiding root and leaves that are direct ancestors
@@ -42,20 +34,19 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         ArrayList<Integer> allowableNodeIndices = new ArrayList<Integer>();
         ArrayList<Integer> sRangeInternalNodeNrs = tree.getSRangesInternalNodeNrs();
 
+        // select child
         for (int index=0; index<nodeCount; index++) {
             Node node = tree.getNode(index);
-            //the node is not the root, it is not a sampled ancestor on a zero branch, it is not an internal node of a
-            // stratigraphic range
-            if (!node.isRoot() && !node.isDirectAncestor() && !sRangeInternalNodeNrs.contains(node.getNr()))
+            // the node is not the root,
+            //  it is not a sampled ancestor on a zero branch, (we select fake node)
+            //  it is not an internal node of a stratigraphic range
+            if (!node.isRoot() &&
+                    !node.isDirectAncestor() &&
+                    !sRangeInternalNodeNrs.contains(node.getNr()))
                 allowableNodeIndices.add(index);
         }
 
         Node i;
-
-//        do {
-//            i = tree.getNode(Randomizer.nextInt(nodeCount));
-//        } while (i.isRoot() || i.isDirectAncestor());
-
 
         int allowableNodeCount = allowableNodeIndices.size();
 
@@ -63,10 +54,10 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
             return Double.NEGATIVE_INFINITY;
         }
 
-        i=tree.getNode(allowableNodeIndices.get(Randomizer.nextInt(allowableNodeCount)));
+        i = tree.getNode(allowableNodeIndices.get(Randomizer.nextInt(allowableNodeCount)));
 
         Node iP = i.getParent();
-        Node CiP;
+        Node CiP; // Sibling of i
         if (iP.getLeft().getNr() == i.getNr()) {
             CiP = iP.getRight();
         } else {
@@ -74,8 +65,9 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         }
 
         // make sure that there is at least one candidate edge to attach node iP to
+        // If iP is the root then i must be attached as a leaf below CiP
         if (iP.getParent() == null && CiP.getHeight() <= i.getHeight()) {
-            return Double.NEGATIVE_INFINITY;
+            return Double.NEGATIVE_INFINITY; //
         }
 
         // choose another random node to insert i above or to attach i to this node if it is a leaf
@@ -85,7 +77,8 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         final int leafNodeCount = tree.getLeafNodeCount();
 
         if (leafNodeCount != tree.getExternalNodes().size()) {
-            System.out.println("node counts are incorrect. NodeCount = " + nodeCount + " leafNodeCount = " + leafNodeCount + " exteranl node count = " + tree.getExternalNodes().size());
+            System.out.println("node counts are incorrect. NodeCount = " + nodeCount + " leafNodeCount = " +
+                    leafNodeCount + " external node count = " + tree.getExternalNodes().size());
         }
 
         // make sure that the target branch <jP, j> or target leaf j is above the subtree being moved
@@ -97,26 +90,27 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         //boolean adjacentLeaf;
         do {
             adjacentEdge = false;
-            //adjacentLeaf = false;
             nodeNumber = Randomizer.nextInt(nodeCount + leafNodeCount);
-            if (nodeNumber < nodeCount) {
+            if (nodeNumber < nodeCount) { // Attaching to branch
                 j = tree.getNode(nodeNumber);
                 jP = j.getParent();
                 if (jP != null)
                     newParentHeight = jP.getHeight();
-                else newParentHeight = Double.POSITIVE_INFINITY;
+                else // Attaching to root branch
+                    newParentHeight = Double.POSITIVE_INFINITY;
                 if (!CiP.isDirectAncestor())
                     adjacentEdge = (CiP.getNr() == j.getNr() || iP.getNr() == j.getNr());
                 attachingToLeaf = false;
-            } else {
+            } else { // Attaching to leaf
                 j = tree.getExternalNodes().get(nodeNumber - nodeCount);
                 jP = j.getParent();
                 newParentHeight = j.getHeight();
                 attachingToLeaf = true;
-                //adjacentLeaf = (iP.getNr() == j.getNr());
             }
-        } while (j.isDirectAncestor() || (newParentHeight <= i.getHeight()) || (i.getNr() == j.getNr()) || adjacentEdge /*|| adjacentLeaf */);
-
+        } while (j.isDirectAncestor() || // Must not attach to zero length branch
+                (newParentHeight <= i.getHeight()) || // New parent must be above selected branch
+                (i.getNr() == j.getNr()) ||
+                adjacentEdge );  // Adjacent edge must not be selected
 
         if (attachingToLeaf && iP.getNr() == j.getNr()) {
             System.out.println("Proposal failed because j = iP");
@@ -128,28 +122,22 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
             return Double.NEGATIVE_INFINITY;
         }
 
-
-
         //oldDimension = nodeCount - tree.getDirectAncestorNodeCount() - 1;
         oldDimension = allowableNodeCount;
-        orientationCoefficient = 1.0;
         StratigraphicRange pruningRange = null;
         StratigraphicRange attachingRange = null;
 
         //classify the type of move being performed before changing the tree structure
         boolean pruningFromSA = CiP.isDirectAncestor();
-        boolean initialParentAsymmetric = false;
-        boolean newParentAsymmetric = false;
         boolean pruningFromSRange = !CiP.isDirectAncestor() && sRangeInternalNodeNrs.contains(iP.getNr());
         if (pruningFromSRange || pruningFromSA) {
             pruningRange = tree.getRangeOfNode(iP);
-        } else {
-            initialParentAsymmetric = !tree.getNodeIsSymmetric(iP);
         }
         boolean attachingToSRange = !attachingToLeaf && jP != null && tree.belongToSameSRange(jP.getNr(),j.getNr());
         if (attachingToLeaf || attachingToSRange) {
             attachingRange = tree.getRangeOfNode(j);
         }
+
 
 
         //Hastings numerator calculation + newAge of iP
@@ -189,13 +177,25 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
             }
         }
 
+        boolean oldPossiblySymmetric = !pruningFromSA && !pruningFromSRange;
+        boolean oldSymmetric = oldPossiblySymmetric && tree.getNodeIsSymmetric(iP);
+
+        if(oldPossiblySymmetric){ // Remove symmetry of old event before moving
+            // Is this necessary?
+            tree.setNodeIsSymmetric(iP, false);
+        }
+
+        boolean newPossiblySymmetric = !attachingToSRange && !attachingToLeaf;
+        boolean newSymmetric = newPossiblySymmetric && Randomizer.nextBoolean();
+
         //update
-        if (iP.getNr() != j.getNr() && CiP.getNr() != j.getNr()) { // special case 1: iP = j when pruning from sampled ancestor iP and attaching to the branch above (PiP, iP)
-            // special case 2: CiP = j when pruning from a branch (PiP, CiP) and attaching to a leaf CiP
-            // In both cases the internal tree structure does not change, only the height of iP
+        if (iP.getNr() != j.getNr() && CiP.getNr() != j.getNr()) { // Not special case
+
+            // Remove from old location
+
             iP.removeChild(CiP); //remove <iP, CiP>
 
-            if (PiP != null) {
+            if (PiP != null) { // iP is not root
                 boolean left = PiP.getLeft().getNr() == iP.getNr();
                 Node anotherChild;
                 if (left) {
@@ -203,6 +203,7 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
                 } else {
                     anotherChild = PiP.getLeft();
                 }
+
                 PiP.removeChild(iP);   // remove <PiP,iP>
                 CiP.setParent(PiP);
                 if (left) {
@@ -214,11 +215,12 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
                 }  // add <PiP, CiP> keeping the orientation of the edge <PiP,iP>, that is, Or(CiP)=Or(iP)
                 PiP.makeDirty(Tree.IS_FILTHY);
                 CiP.makeDirty(Tree.IS_FILTHY);
-            } else {
+            } else { // iP is root
                 CiP.setParent(null); // completely remove <iP, CiP>
                 tree.setRootOnly(CiP);
             }
 
+            // Attach to new location
             boolean jLeft= (jP != null) && jP.getLeft().getNr() == j.getNr();
 
             if (jP != null) {
@@ -244,46 +246,69 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
                 tree.setRootOnly(iP);
             }
             j.setParent(iP);
-            if (attachingToSRange || (attachingToLeaf && !jLeft)) {
-                iP.setLeft(j);
-                iP.setRight(i);
+
+            if(newPossiblySymmetric){
+                if(newSymmetric){
+                    iP.setLeft(i);
+                    iP.setRight(j);
+                    tree.setNodeIsSymmetric(iP, true);
+                    iP.sort();
+                } else { // New event is asymmetric
+                    if(Randomizer.nextBoolean()){ // Randomly choose the orientation
+                        iP.setLeft(j);
+                        iP.setRight(i);
+                    } else {
+                        iP.setLeft(i);
+                        iP.setRight(j);
+                    }
+                }
             } else {
-                newParentAsymmetric = Randomizer.nextBoolean(); // TODO: Think through
-                if(newParentAsymmetric && Randomizer.nextBoolean()){
+                if (attachingToSRange || (attachingToLeaf && !jLeft)) {
                     iP.setLeft(j);
                     iP.setRight(i);
                 } else {
                     iP.setLeft(i);
                     iP.setRight(j);
                 }
-                tree.setNodeIsSymmetric(iP, newParentAsymmetric);
             }
+
             iP.makeDirty(Tree.IS_FILTHY);
             j.makeDirty(Tree.IS_FILTHY);
         } else {
+            // special case 1: iP = j when pruning from sampled ancestor iP and attaching to the branch above (PiP, iP)
+            // special case 2: CiP = j when pruning from a branch (PiP, CiP) and attaching to a leaf CiP
+            // In both cases the internal tree structure does not change, only the height of iP
             if (iP.getNr() == j.getNr()) {
-                if (attachingToSRange) { // TODO: Think through
+                if (attachingToSRange) {
                     //in special case 1: when attaching to the range
                     //make i right
                     //otherwise choose randomly
                     iP.setLeft(CiP);
                     iP.setRight(i);
                 } else {
-                    newParentAsymmetric = Randomizer.nextBoolean(); // TODO: Think through
-                    if(newParentAsymmetric && Randomizer.nextBoolean()){
+                    if(newSymmetric){
                         iP.setLeft(i);
-                        iP.setRight(CiP);
-                    } else {
-                        iP.setLeft(CiP);
-                        iP.setRight(i);
+                        iP.setRight(j);
+                        tree.setNodeIsSymmetric(iP, true);
+                    } else { // New event is asymmetric
+                        if(Randomizer.nextBoolean()){ // Randomly choose the orientation
+                            iP.setLeft(j);
+                            iP.setRight(i);
+                        } else {
+                            iP.setLeft(i);
+                            iP.setRight(j);
+                        }
                     }
-                    tree.setNodeIsSymmetric(iP, newParentAsymmetric);
+                    iP.setLeft(i);
+                    iP.setRight(CiP);
                 }
             }
             if (CiP.getNr() == j.getNr()) {
-                if (PiP == null || PiP.getLeft().getNr() == iP.getNr()) { //in special case 2: when iP is not the root
+                if (PiP == null || PiP.getLeft().getNr() == iP.getNr()) {
+                    //in special case 2: when iP is not the root
                     //make i the same orientation as iP
                     //otherwise make i left
+                    // Is attachingToLeaf always true???
                     iP.setLeft(i);
                     iP.setRight(CiP);
                 } else {
@@ -294,11 +319,7 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         }
         iP.setHeight(newAge);
 
-        // remove or add nodes to the ranges and calculate the orientation coefficient
-        if (pruningFromSRange) {
-            pruningRange.removeNodeNr(iP.getNr());
-            orientationCoefficient *= 0.5;
-        }
+        // remove or add nodes to the ranges
         if (pruningFromSA) {
             pruningRange.removeNodeNr(iP.getNr());
             pruningRange.addNodeNr(CiP.getNr());
@@ -306,10 +327,6 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
         if (attachingToLeaf) {
             attachingRange.removeNodeNr(j.getNr());
             attachingRange.addNodeNr(iP.getNr());
-        }
-        if (attachingToSRange) {
-            attachingRange.addNodeNrAfter(jP.getNr(), iP.getNr());
-            orientationCoefficient *= 2.0;
         }
 
         //newDimension = nodeCount - tree.getDirectAncestorNodeCount() - 1;
@@ -323,7 +340,9 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
                 newDimension++;
         }
         dimensionCoefficient = (double) oldDimension / newDimension;
-        symmetryCoefficient = 1.0 * (initialParentAsymmetric ? 0.5 : 1.0) * (newParentAsymmetric ? 2.0 : 1.0);
+
+        double symmetryCoefficient = (oldPossiblySymmetric ? 0.5 : 1.0)/(newPossiblySymmetric ? 0.5 : 1.0);
+        double orientationCoefficient = (oldSymmetric ? -2.0 : 1.0)/(newSymmetric ? 2.0 : 1.0);
 
 //        for (StratigraphicRange range:sRangeSet.getRanges()) {
 //            ArrayList<Node> nodes = (ArrayList) range.getNodes();
@@ -341,7 +360,7 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
 
 
 
-        fHastingsRatio = Math.abs(orientationCoefficient * dimensionCoefficient * symmetryCoefficient * newRange / oldRange);
+        fHastingsRatio = Math.abs(symmetryCoefficient * orientationCoefficient * dimensionCoefficient * newRange / oldRange);
 
         return Math.log(fHastingsRatio);
 
