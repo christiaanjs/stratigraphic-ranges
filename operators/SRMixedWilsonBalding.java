@@ -290,6 +290,7 @@ public class SRMixedWilsonBalding extends SRMixedTreeOperator {
                         iP.setLeft(i);
                         iP.setRight(j);
                         tree.setNodeIsSymmetric(iP, true);
+                        iP.sort();
                     } else { // New event is asymmetric
                         if(Randomizer.nextBoolean()){ // Randomly choose the orientation
                             iP.setLeft(j);
