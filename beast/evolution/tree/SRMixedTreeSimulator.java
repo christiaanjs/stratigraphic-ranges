@@ -153,9 +153,9 @@ public class SRMixedTreeSimulator {
             int speciesId = speciesMap.get(sampledAncestor);
             Map<Integer, List<Node>> map = collectStratigraphicRanges(node.getLeft());
             if(map.containsKey(speciesId)){
-                map.get(speciesId).add(0, sampledAncestor);
+                map.get(speciesId).add(0, node); // Expects fake node
             } else {
-                map.put(speciesId, createNewStratigraphicRange(sampledAncestor));
+                map.put(speciesId, createNewStratigraphicRange(node));
             }
             return map;
         } else { // Speciation event
@@ -301,6 +301,8 @@ public class SRMixedTreeSimulator {
         SRMixedTree tree = simulator.buildTree();
 
         SRangesMixedBirthDeathModel l = new SRangesMixedBirthDeathModel();
+        l.setInputValue("tree", tree);
+        setRealInput(l, l.originInput, x0);
         setRealInput(l, l.birthRateInput, lambda);
         setRealInput(l, l.deathRateInput, mu);
         setRealInput(l, l.samplingRateInput, psi);
@@ -308,6 +310,8 @@ public class SRMixedTreeSimulator {
         setRealInput(l, l.removalProbability, 0.0);
         setRealInput(l, l.symmetricSpeciationProbability, beta);
         setRealInput(l, l.anageneticSpeciationRate, lambda_a);
+
+        l.initAndValidate();
 
         System.out.println("Calculated likelihood");
         System.out.println(l.calculateTreeLogLikelihood(tree));

@@ -41,8 +41,6 @@ public class StratigraphicRange extends BEASTObject {
 
     public StratigraphicRange(List<Integer> nodes){
         this.nodes = nodes;
-        setFirstOccurrenceNodeNr(nodes.get(0));
-        setLastOccurrenceNodeNr(nodes.get(nodes.size() - 1));
         if(nodes.size() == 1){
             makeSingleFossilRange();
         }
