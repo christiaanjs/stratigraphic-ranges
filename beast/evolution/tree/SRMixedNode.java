@@ -32,4 +32,17 @@ public class SRMixedNode extends Node {
         }
         return node;
     }
+
+    @Override
+    public void setLeft(final Node leftChild) {
+        super.setLeft(leftChild);
+        leftChild.setParent(this, false);
+    }
+
+    @Override
+    public void setRight(final Node rightChild) {
+        super.setRight(rightChild);
+        rightChild.setParent(this, false);
+    }
+
 }

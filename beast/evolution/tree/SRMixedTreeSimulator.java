@@ -2,8 +2,10 @@ package beast.evolution.tree;
 
 
 import beast.util.Randomizer;
+import sranges.StratigraphicRange;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SRMixedTreeSimulator {
 
@@ -95,8 +97,8 @@ public class SRMixedTreeSimulator {
 
             if(leftSampled != null && rightSampled != null){
                 node.removeAllChildren(false);
-                node.addChild(leftSampled);
-                node.addChild(rightSampled); // What about when both left and right are sampled ancestors?
+                node.setLeft(leftSampled);
+                node.setRight(rightSampled);
                 return node;
             } else if(leftSampled != null || rightSampled != null){
                 return leftSampled != null ? leftSampled : rightSampled;
@@ -106,6 +108,37 @@ public class SRMixedTreeSimulator {
                 else
                     return null;
             }
+        }
+    }
+
+    private List<Node> createNewStratigraphicRange(Node node){
+        LinkedList<Node> newRange = new LinkedList<>();
+        newRange.add(node);
+        return newRange;
+    }
+
+    public Map<Integer, List<Node>> buildStratigraphicRanges(Node node){
+        if(node.isLeaf()){ // Leaf
+            int speciesId = speciesMap.get(node);
+            List<Node> newRange = createNewStratigraphicRange(node);
+            Map<Integer, List<Node>> map = new HashMap<>();
+            map.put(speciesId, newRange);
+            return map;
+        } else if(node.isFake()){ // Sampled ancestor
+            Node sampledAncestor = node.getRight();
+            int speciesId = speciesMap.get(sampledAncestor);
+            Map<Integer, List<Node>> map = buildStratigraphicRanges(node.getLeft());
+            if(map.containsKey(speciesId)){
+                map.get(speciesId).add(0, sampledAncestor);
+            } else {
+                map.put(speciesId, createNewStratigraphicRange(sampledAncestor));
+            }
+            return map;
+        } else { // Speciation event
+            Map<Integer, List<Node>> leftMap = buildStratigraphicRanges(node.getLeft());
+            Map<Integer, List<Node>> rightMap = buildStratigraphicRanges(node.getRight());
+            leftMap.putAll(rightMap);
+            return leftMap;
         }
     }
 
@@ -132,13 +165,14 @@ public class SRMixedTreeSimulator {
 
         assignNewSpecies(parent.getRight());
 
-        System.out.println((symmetric ? "symmetric" : "asymmetric") + " speciation event at " + t);
+        System.out.println((symmetric ? "symmetric" : "asymmetric") + " speciation event at " + t + " at " + parent.getNr());
     }
 
     private void createExtinctionEvent(){
-        popActiveNode().setHeight(t);
+        Node node = popActiveNode();
+        node.setHeight(t);
 
-        System.out.println("Extinction event at " + t);
+        System.out.println("Extinction event at " + t + " at " + node.getNr());
     }
 
     private void createSamplingEvent(){
@@ -148,8 +182,8 @@ public class SRMixedTreeSimulator {
         Node sample = createNode();
         Node child = createNode();
 
-        node.addChild(sample);
-        node.addChild(child);
+        node.setRight(sample);
+        node.setLeft(child);
 
         propagateSpecies(sample);
         propagateSpecies(child);
@@ -158,7 +192,7 @@ public class SRMixedTreeSimulator {
 
         activeNodes.add(child);
 
-        System.out.println("Sampling event at " + t);
+        System.out.println("Sampling event at " + t + " at " + node.getNr());
     }
 
     private void createAnageneticSpeciationEvent(){
@@ -166,7 +200,7 @@ public class SRMixedTreeSimulator {
         assignNewSpecies(node);
         activeNodes.add(node);
 
-        System.out.println("Anagetic speciation event at " + t);
+        System.out.println("Anagetic speciation event at " + t + " above " + node.getNr());
     }
 
     private void propagateSpecies(Node child){
@@ -208,6 +242,18 @@ public class SRMixedTreeSimulator {
         System.out.println("Sampled tree");
         System.out.println(root.toString());
 
+        Map<Integer, List<Node>> stratigraphicRanges = simulator.buildStratigraphicRanges(root);
+        System.out.println("Stratigraphic ranges");
+        System.out.println(stratigraphicRanges.values().stream()
+            .map((List<Node> l) -> l.stream().map((Node n) -> n.getNr()).collect(Collectors.toList()))
+            .collect(Collectors.toList()));
+
+        System.out.println("Symmetric nodes");
+        final Set<Node> nodes = new HashSet<>(root.getAllChildNodesAndSelf());
+        System.out.println(simulator.symmetricNodes.stream()
+                .filter((Node n) -> nodes.contains(n))
+                .map((Node n) -> n.getNr())
+                .collect(Collectors.toSet()));
 
     }
 
