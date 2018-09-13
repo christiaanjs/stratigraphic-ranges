@@ -1,8 +1,21 @@
 package beast.evolution.tree;
 
 import beast.core.StateNode;
+import sranges.StratigraphicRange;
+
+import java.util.List;
 
 public class SRMixedTree extends SRTree {
+
+    public SRMixedTree(){}
+
+    public SRMixedTree(Node root, List<StratigraphicRange> sRanges, List<Node> symmetricNodes){
+        super(root, sRanges);
+        initSymmetric();
+        for(Node symmetricNode: symmetricNodes){
+            setNodeIsSymmetric(symmetricNode, true);
+        }
+    }
 
     private boolean[] nodeIsSymmetric;
     private boolean[] storedNodeIsSymmetric;

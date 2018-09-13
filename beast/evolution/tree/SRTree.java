@@ -29,6 +29,13 @@ public class SRTree extends Tree {
     protected ArrayList<StratigraphicRange> sRanges;
     protected ArrayList<StratigraphicRange> storedSRanges;
 
+    public SRTree(){}
+
+    public SRTree(Node root, List<StratigraphicRange> sRanges){
+        super(root);
+        this.sRanges = new ArrayList<>(sRanges);
+    }
+
     @Override
     public void initAndValidate() {
         if (treeInput.get() != null) {

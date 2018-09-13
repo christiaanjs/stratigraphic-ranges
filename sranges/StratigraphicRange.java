@@ -35,7 +35,18 @@ public class StratigraphicRange extends BEASTObject {
      * For a single fossil range the first and the last occurrences coincide and there is only a single.
      * node in the list.
      */
-    private List<Integer> nodes = new ArrayList<>();  //
+    private List<Integer> nodes = new ArrayList<>();
+
+    public StratigraphicRange(){ }
+
+    public StratigraphicRange(List<Integer> nodes){
+        this.nodes = nodes;
+        setFirstOccurrenceNodeNr(nodes.get(0));
+        setLastOccurrenceNodeNr(nodes.get(nodes.size() - 1));
+        if(nodes.size() == 1){
+            makeSingleFossilRange();
+        }
+    }
 
     @Override
     public void initAndValidate() {

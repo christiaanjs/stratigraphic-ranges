@@ -1,10 +1,15 @@
 package beast.evolution.tree;
 
 
+import beast.core.BEASTObject;
+import beast.core.Input;
+import beast.core.parameter.RealParameter;
 import beast.util.Randomizer;
+import speciation.SRangesMixedBirthDeathModel;
 import sranges.StratigraphicRange;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SRMixedTreeSimulator {
@@ -13,7 +18,6 @@ public class SRMixedTreeSimulator {
 
     private double t;
     private int nSpecies;
-    private int nNodes;
     private Node root;
     private List<Node> activeNodes;
     private Set<Node> symmetricNodes;
@@ -36,7 +40,6 @@ public class SRMixedTreeSimulator {
     private void initSimulation(){
         t = x0;
         nSpecies = 0;
-        nNodes = 0;
 
         activeNodes = new ArrayList<>();
         symmetricNodes = new HashSet<>();
@@ -82,6 +85,10 @@ public class SRMixedTreeSimulator {
         return getRoot();
     }
 
+    public Node sampleLeaves(){
+        return sampleLeaves(root);
+    }
+
     public Node sampleLeaves(Node node){
         if(node.isDirectAncestor()){
             return node;
@@ -111,13 +118,30 @@ public class SRMixedTreeSimulator {
         }
     }
 
+    public int numberNodes(){
+        return numberNodes(root, 0);
+    }
+
+    public int numberNodes(Node node, int counter){
+        if(!node.isLeaf()){
+            for(Node child: node.getChildren())
+                counter = numberNodes(child, counter);
+        }
+        node.setNr(counter++);
+        return counter;
+    }
+
     private List<Node> createNewStratigraphicRange(Node node){
         LinkedList<Node> newRange = new LinkedList<>();
         newRange.add(node);
         return newRange;
     }
 
-    public Map<Integer, List<Node>> buildStratigraphicRanges(Node node){
+    public Map<Integer, List<Node>> collectStratigraphicRanges(){
+        return collectStratigraphicRanges(root);
+    }
+
+    public Map<Integer, List<Node>> collectStratigraphicRanges(Node node){
         if(node.isLeaf()){ // Leaf
             int speciesId = speciesMap.get(node);
             List<Node> newRange = createNewStratigraphicRange(node);
@@ -127,7 +151,7 @@ public class SRMixedTreeSimulator {
         } else if(node.isFake()){ // Sampled ancestor
             Node sampledAncestor = node.getRight();
             int speciesId = speciesMap.get(sampledAncestor);
-            Map<Integer, List<Node>> map = buildStratigraphicRanges(node.getLeft());
+            Map<Integer, List<Node>> map = collectStratigraphicRanges(node.getLeft());
             if(map.containsKey(speciesId)){
                 map.get(speciesId).add(0, sampledAncestor);
             } else {
@@ -135,11 +159,27 @@ public class SRMixedTreeSimulator {
             }
             return map;
         } else { // Speciation event
-            Map<Integer, List<Node>> leftMap = buildStratigraphicRanges(node.getLeft());
-            Map<Integer, List<Node>> rightMap = buildStratigraphicRanges(node.getRight());
+            Map<Integer, List<Node>> leftMap = collectStratigraphicRanges(node.getLeft());
+            Map<Integer, List<Node>> rightMap = collectStratigraphicRanges(node.getRight());
             leftMap.putAll(rightMap);
             return leftMap;
         }
+    }
+
+    private StratigraphicRange buildStratigraphicRange(List<Node> sortedRangeNodes){
+        return new StratigraphicRange(sortedRangeNodes.stream()
+                .map((Node n) -> n.getNr()).collect(Collectors.toList()));
+    }
+
+    public List<StratigraphicRange> buildStratigraphicRanges(){
+        Map<Integer, List<Node>> srangeMap = collectStratigraphicRanges();
+        return srangeMap.values().stream()
+                .map(this::buildStratigraphicRange)
+                .collect(Collectors.toList());
+    }
+
+    public SRMixedTree buildTree(){
+        return new SRMixedTree(root, buildStratigraphicRanges(), new ArrayList<>(symmetricNodes));
     }
 
     private void createSpeciationEvent(){
@@ -218,11 +258,14 @@ public class SRMixedTreeSimulator {
 
     private Node createNode(){
         Node node = new SRMixedNode();
-        node.setNr(nNodes++);
         return node;
     }
 
-    public static void main(String[] args){
+    public Set<Node> getSymmetricNodes(){
+        return symmetricNodes;
+    }
+
+    public static void main(String[] args) {
         double x0 = 4.0;
         double lambda = 0.8;
         double mu = 0.2;
@@ -235,27 +278,44 @@ public class SRMixedTreeSimulator {
 
         SRMixedTreeSimulator simulator = new SRMixedTreeSimulator(x0, lambda, mu, psi, rho, beta, lambda_a);
         Node root = simulator.simulateFullTree();
+        simulator.numberNodes();
         System.out.println("Full tree");
         System.out.println(root.toString());
 
-        root = simulator.sampleLeaves(root);
+        simulator.numberNodes();
+
+        simulator.sampleLeaves();
         System.out.println("Sampled tree");
         System.out.println(root.toString());
 
-        Map<Integer, List<Node>> stratigraphicRanges = simulator.buildStratigraphicRanges(root);
+        simulator.numberNodes();
+
         System.out.println("Stratigraphic ranges");
-        System.out.println(stratigraphicRanges.values().stream()
-            .map((List<Node> l) -> l.stream().map((Node n) -> n.getNr()).collect(Collectors.toList()))
-            .collect(Collectors.toList()));
+        System.out.println(simulator.collectStratigraphicRanges().values().stream()
+                .map((List<Node> l) -> l.stream().map((Node n) -> n.getNr()).collect(Collectors.toList()))
+                .collect(Collectors.toList()));
 
         System.out.println("Symmetric nodes");
-        final Set<Node> nodes = new HashSet<>(root.getAllChildNodesAndSelf());
-        System.out.println(simulator.symmetricNodes.stream()
-                .filter((Node n) -> nodes.contains(n))
-                .map((Node n) -> n.getNr())
-                .collect(Collectors.toSet()));
+        System.out.println(simulator.getSymmetricNodes().stream().map((Node n) -> n.getNr()).collect(Collectors.toSet()).toString());
+
+        SRMixedTree tree = simulator.buildTree();
+
+        SRangesMixedBirthDeathModel l = new SRangesMixedBirthDeathModel();
+        setRealInput(l, l.birthRateInput, lambda);
+        setRealInput(l, l.deathRateInput, mu);
+        setRealInput(l, l.samplingRateInput, psi);
+        setRealInput(l, l.samplingProportionInput, rho);
+        setRealInput(l, l.removalProbability, 0.0);
+        setRealInput(l, l.symmetricSpeciationProbability, beta);
+        setRealInput(l, l.anageneticSpeciationRate, lambda_a);
+
+        System.out.println("Calculated likelihood");
+        System.out.println(l.calculateTreeLogLikelihood(tree));
 
     }
 
+    private static <T> void setRealInput(BEASTObject beastObject, Input<T> input, double value){
+        beastObject.setInputValue(input.getName(), new RealParameter(Double.toString(value)));
+    }
 
 }
