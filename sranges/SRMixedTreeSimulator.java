@@ -1,15 +1,12 @@
-package beast.evolution.tree;
+package sranges;
 
 
-import beast.core.BEASTObject;
-import beast.core.Input;
-import beast.core.parameter.RealParameter;
+import beast.evolution.tree.Node;
+import beast.evolution.tree.SRMixedNode;
+import beast.evolution.tree.SRMixedTree;
 import beast.util.Randomizer;
-import speciation.SRangesMixedBirthDeathModel;
-import sranges.StratigraphicRange;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SRMixedTreeSimulator {
@@ -23,6 +20,18 @@ public class SRMixedTreeSimulator {
     private Set<Node> symmetricNodes;
     private Map<Node, Integer> speciesMap;
 
+    private int numberOfSimulations;
+
+    public static SRMixedTree doSimulation(double... args){
+        SRMixedTreeSimulator simulator = new SRMixedTreeSimulator(args);
+        return simulator.doSimulation();
+
+    }
+
+    public SRMixedTreeSimulator(double[] args){
+        this(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+    }
+
     public SRMixedTreeSimulator(double x0, double lambda, double mu, double psi, double rho, double beta, double lambda_a){
         this.x0 = x0;
         this.lambda = lambda;
@@ -34,7 +43,22 @@ public class SRMixedTreeSimulator {
 
         totalRate = lambda + mu + psi + lambda_a;
 
+        numberOfSimulations = 0;
+
         initSimulation();
+    }
+
+    public int getNumberOfSimulations(){
+        return numberOfSimulations;
+    }
+
+    public SRMixedTree doSimulation(){
+        numberOfSimulations++;
+        initSimulation();
+        simulateFullTree();
+        sampleLeaves();
+        numberNodes();
+        return buildTree();
     }
 
     private void initSimulation(){
@@ -204,15 +228,11 @@ public class SRMixedTreeSimulator {
         }
 
         assignNewSpecies(parent.getRight());
-
-        System.out.println((symmetric ? "symmetric" : "asymmetric") + " speciation event at " + t + " at " + parent.getNr());
     }
 
     private void createExtinctionEvent(){
         Node node = popActiveNode();
         node.setHeight(t);
-
-        System.out.println("Extinction event at " + t + " at " + node.getNr());
     }
 
     private void createSamplingEvent(){
@@ -231,16 +251,12 @@ public class SRMixedTreeSimulator {
         sample.setHeight(t);
 
         activeNodes.add(child);
-
-        System.out.println("Sampling event at " + t + " at " + node.getNr());
     }
 
     private void createAnageneticSpeciationEvent(){
         Node node = popActiveNode(); // TODO: Do we need to create an event for this?
         assignNewSpecies(node);
         activeNodes.add(node);
-
-        System.out.println("Anagetic speciation event at " + t + " above " + node.getNr());
     }
 
     private void propagateSpecies(Node child){
@@ -263,63 +279,6 @@ public class SRMixedTreeSimulator {
 
     public Set<Node> getSymmetricNodes(){
         return symmetricNodes;
-    }
-
-    public static void main(String[] args) {
-        double x0 = 4.0;
-        double lambda = 0.8;
-        double mu = 0.2;
-        double psi = 1.0;
-        double rho = 0.5;
-        double beta = 0.5;
-        double lambda_a = 0.2;
-
-        Randomizer.setSeed(1234);
-
-        SRMixedTreeSimulator simulator = new SRMixedTreeSimulator(x0, lambda, mu, psi, rho, beta, lambda_a);
-        Node root = simulator.simulateFullTree();
-        simulator.numberNodes();
-        System.out.println("Full tree");
-        System.out.println(root.toString());
-
-        simulator.numberNodes();
-
-        simulator.sampleLeaves();
-        System.out.println("Sampled tree");
-        System.out.println(root.toString());
-
-        simulator.numberNodes();
-
-        System.out.println("Stratigraphic ranges");
-        System.out.println(simulator.collectStratigraphicRanges().values().stream()
-                .map((List<Node> l) -> l.stream().map((Node n) -> n.getNr()).collect(Collectors.toList()))
-                .collect(Collectors.toList()));
-
-        System.out.println("Symmetric nodes");
-        System.out.println(simulator.getSymmetricNodes().stream().map((Node n) -> n.getNr()).collect(Collectors.toSet()).toString());
-
-        SRMixedTree tree = simulator.buildTree();
-
-        SRangesMixedBirthDeathModel l = new SRangesMixedBirthDeathModel();
-        l.setInputValue("tree", tree);
-        setRealInput(l, l.originInput, x0);
-        setRealInput(l, l.birthRateInput, lambda);
-        setRealInput(l, l.deathRateInput, mu);
-        setRealInput(l, l.samplingRateInput, psi);
-        setRealInput(l, l.samplingProportionInput, rho);
-        setRealInput(l, l.removalProbability, 0.0);
-        setRealInput(l, l.symmetricSpeciationProbability, beta);
-        setRealInput(l, l.anageneticSpeciationRate, lambda_a);
-
-        l.initAndValidate();
-
-        System.out.println("Calculated likelihood");
-        System.out.println(l.calculateTreeLogLikelihood(tree));
-
-    }
-
-    private static <T> void setRealInput(BEASTObject beastObject, Input<T> input, double value){
-        beastObject.setInputValue(input.getName(), new RealParameter(Double.toString(value)));
     }
 
 }

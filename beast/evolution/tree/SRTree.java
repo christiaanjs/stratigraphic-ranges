@@ -264,4 +264,21 @@ public class SRTree extends Tree {
         return false;
     }
 
+    public int getNumberOfRanges(){
+        return sRanges.size();
+    }
+
+    public long getNumberOfRhoSamples(){
+        return Arrays.stream(m_nodes).filter((Node n) -> n.isLeaf() && n.height < EPSILON).count();
+    }
+
+    public long getNumberOfPsiSamples(){
+        return Arrays.stream(m_nodes).filter(Node::isDirectAncestor).count();
+    }
+
+    public boolean rangeHasRhoSample(StratigraphicRange range){
+        Node n = m_nodes[range.getLastOccurrenceNr()];
+        return n.isLeaf() && n.height < EPSILON;
+    }
+
 }

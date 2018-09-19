@@ -176,6 +176,14 @@ public class StratigraphicRange extends BEASTObject {
         return lastOccurrenceID;
     }
 
+    public int getFirstOccurrenceNr(){
+        return nodes.get(0);
+    }
+
+    public int getLastOccurrenceNr(){
+        return nodes.get(nodes.size() - 1);
+    }
+
     public void addNodeNr(int nodeNr) {
         nodes.add(nodeNr);
     }
