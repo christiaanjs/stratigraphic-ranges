@@ -7,363 +7,165 @@ import beast.evolution.tree.Tree;
 import beast.util.Randomizer;
 import sranges.StratigraphicRange;
 
-import java.util.ArrayList;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class SRMixedWilsonBalding extends SRMixedTreeOperator {
-    @Override
-    public void initAndValidate() {
-    }
+
 
     /**
      * @return log of Hastings Ratio, or Double.NEGATIVE_INFINITY if proposal should not be accepted *
      */
     @Override
     public double proposal() {
+        Set<Integer> srangeInternalNodes = new HashSet<>(tree.getSRangesInternalNodeNrs());
 
-        SRMixedTree tree = treeInput.get(this);
 
-        //double x0 = 10;
-
-        double oldMinAge, newMinAge, newRange, oldRange, newAge, fHastingsRatio, dimensionCoefficient;
-        int newDimension, oldDimension;
-
-        // choose a random node avoiding root and leaves that are direct ancestors
-        int nodeCount = tree.getNodeCount();
-
-        ArrayList<Integer> allowableNodeIndices = new ArrayList<Integer>();
-        ArrayList<Integer> sRangeInternalNodeNrs = tree.getSRangesInternalNodeNrs();
-
-        // select child
-        for (int index=0; index<nodeCount; index++) {
-            Node node = tree.getNode(index);
-            // the node is not the root,
-            //  it is not a sampled ancestor on a zero branch, (we select fake node)
-            //  it is not an internal node of a stratigraphic range
-            if (!node.isRoot() &&
-                    !node.isDirectAncestor() &&
-                    !sRangeInternalNodeNrs.contains(node.getNr()))
-                allowableNodeIndices.add(index);
-        }
-
-        Node i;
-
-        int allowableNodeCount = allowableNodeIndices.size();
-
-        if (allowableNodeCount == 0) {
-            return Double.NEGATIVE_INFINITY;
-        }
-
-        i = tree.getNode(allowableNodeIndices.get(Randomizer.nextInt(allowableNodeCount)));
+        // Select pruned edge
+        List<Node> eligibleNodes = getEligibleNodes(srangeInternalNodes);
+        int eligibleNodeCount = eligibleNodes.size();
+        Node i = eligibleNodes.get(Randomizer.nextInt(eligibleNodeCount));
 
         Node iP = i.getParent();
-        Node CiP; // Sibling of i
-        if (iP.getLeft().getNr() == i.getNr()) {
-            CiP = iP.getRight();
-        } else {
-            CiP = iP.getLeft();
-        }
-
-        // make sure that there is at least one candidate edge to attach node iP to
-        // If iP is the root then i must be attached as a leaf below CiP
-        if (iP.getParent() == null && CiP.getHeight() <= i.getHeight()) {
-            return Double.NEGATIVE_INFINITY; //
-        }
-
-        // choose another random node to insert i above or to attach i to this node if it is a leaf
-        Node j;
-        Node jP;
-
-        final int leafNodeCount = tree.getLeafNodeCount();
-
-        if (leafNodeCount != tree.getExternalNodes().size()) {
-            System.out.println("node counts are incorrect. NodeCount = " + nodeCount + " leafNodeCount = " +
-                    leafNodeCount + " external node count = " + tree.getExternalNodes().size());
-        }
-
-        // make sure that the target branch <jP, j> or target leaf j is above the subtree being moved
-
-        int nodeNumber;
-        double newParentHeight;
-        boolean attachingToLeaf;
-        boolean adjacentEdge;
-        //boolean adjacentLeaf;
-        do {
-            adjacentEdge = false;
-            nodeNumber = Randomizer.nextInt(nodeCount + leafNodeCount);
-            if (nodeNumber < nodeCount) { // Attaching to branch
-                j = tree.getNode(nodeNumber);
-                jP = j.getParent();
-                if (jP != null)
-                    newParentHeight = jP.getHeight();
-                else // Attaching to root branch
-                    newParentHeight = Double.POSITIVE_INFINITY;
-                if (!CiP.isDirectAncestor())
-                    adjacentEdge = (CiP.getNr() == j.getNr() || iP.getNr() == j.getNr());
-                attachingToLeaf = false;
-            } else { // Attaching to leaf
-                j = tree.getExternalNodes().get(nodeNumber - nodeCount);
-                jP = j.getParent();
-                newParentHeight = j.getHeight();
-                attachingToLeaf = true;
-            }
-        } while (j.isDirectAncestor() || // Must not attach to zero length branch
-                (newParentHeight <= i.getHeight()) || // New parent must be above selected branch
-                (i.getNr() == j.getNr()) ||
-                adjacentEdge );  // Adjacent edge must not be selected
-
-        if (attachingToLeaf && iP.getNr() == j.getNr()) {
-            System.out.println("Proposal failed because j = iP");
-            return Double.NEGATIVE_INFINITY;
-        }
-
-        if (jP != null && jP.getNr() == i.getNr()) {
-            System.out.println("Proposal failed because jP = i. Heights of i = " + i.getHeight() + " Height of jP = " + jP.getHeight());
-            return Double.NEGATIVE_INFINITY;
-        }
-
-        //oldDimension = nodeCount - tree.getDirectAncestorNodeCount() - 1;
-        oldDimension = allowableNodeCount;
-        StratigraphicRange pruningRange = null;
-        StratigraphicRange attachingRange = null;
-
-        //classify the type of move being performed before changing the tree structure
-        boolean pruningFromSA = CiP.isDirectAncestor();
-        boolean pruningFromSRange = !CiP.isDirectAncestor() && sRangeInternalNodeNrs.contains(iP.getNr());
-        if (pruningFromSRange || pruningFromSA) {
-            pruningRange = tree.getRangeOfNode(iP);
-        }
-        boolean attachingToSRange = !attachingToLeaf && jP != null && tree.belongToSameSRange(jP.getNr(),j.getNr());
-        if (attachingToLeaf || attachingToSRange) {
-            attachingRange = tree.getRangeOfNode(j);
-        }
-
-
-
-        //Hastings numerator calculation + newAge of iP
-        if (attachingToLeaf) {
-            newRange = 1;
-            newAge = j.getHeight();
-        } else {
-            if (jP != null) {
-                newMinAge = Math.max(i.getHeight(), j.getHeight());
-                newRange = jP.getHeight() - newMinAge;
-                newAge = newMinAge + (Randomizer.nextDouble() * newRange);
-            } else {
-                double randomNumberFromExponential;
-                randomNumberFromExponential = Randomizer.nextExponential(1);
-                //newRange = x0 - j.getHeight();
-                //randomNumberFromExponential = Randomizer.nextDouble() * newRange;
-                newRange = Math.exp(randomNumberFromExponential);
-                newAge = j.getHeight() + randomNumberFromExponential;
-            }
-        }
-
-        Node PiP = iP.getParent();
-
-
-
-        //Hastings denominator calculation
-        if (CiP.isDirectAncestor()) {
-            oldRange = 1;
-        }
-        else {
-            oldMinAge = Math.max(i.getHeight(), CiP.getHeight());
-            if (PiP != null) {
-                oldRange = PiP.getHeight() - oldMinAge;
-            } else {
-                oldRange = Math.exp(iP.getHeight() - oldMinAge);
-                //oldRange = x0 - oldMinAge;
-            }
-        }
-
+        Node CiP = iP.getLeft().getNr() == i.getNr() ? iP.getRight() : iP.getLeft();
+        boolean pruningFromSA = iP.isFake();
+        boolean pruningFromSRange = srangeInternalNodes.contains(iP.getNr());
         boolean oldPossiblySymmetric = !pruningFromSA && !pruningFromSRange;
         boolean oldSymmetric = oldPossiblySymmetric && tree.getNodeIsSymmetric(iP);
 
-        if(oldPossiblySymmetric){ // Remove symmetry of old event before moving
-            // Is this necessary?
-            tree.setNodeIsSymmetric(iP, false);
+        List<Node> eligibleTargets = getEligibleTargets(i);
+        int eligibleTargetCount = eligibleTargets.size();
+
+        if (eligibleTargetCount == 0) {
+            return Double.NEGATIVE_INFINITY;
         }
 
-        boolean newPossiblySymmetric = !attachingToSRange && !attachingToLeaf;
+        // Select target edge
+        Node j = eligibleTargets.get(Randomizer.nextInt(eligibleTargetCount));
+        Node jP = j.getParent();
+
+        boolean attachingToLeaf = j.isLeaf();
+        boolean attachingToRange = !attachingToLeaf && !j.isRoot() && tree.belongToSameSRange(jP.getNr(),j.getNr());
+        boolean newPossiblySymmetric = !attachingToLeaf && !attachingToRange;
         boolean newSymmetric = newPossiblySymmetric && Randomizer.nextBoolean();
 
-        //update
-        if (iP.getNr() != j.getNr() && CiP.getNr() != j.getNr()) { // Not special case
-
-            // Remove from old location
-
-            iP.removeChild(CiP); //remove <iP, CiP>
-
-            if (PiP != null) { // iP is not root
-                boolean left = PiP.getLeft().getNr() == iP.getNr();
-                Node anotherChild;
-                if (left) {
-                    anotherChild = PiP.getRight();
-                } else {
-                    anotherChild = PiP.getLeft();
-                }
-
-                PiP.removeChild(iP);   // remove <PiP,iP>
-                CiP.setParent(PiP);
-                if (left) {
-                    PiP.setLeft(CiP);
-                    PiP.setRight(anotherChild);
-                } else {
-                    PiP.setLeft(anotherChild);
-                    PiP.setRight(CiP);
-                }  // add <PiP, CiP> keeping the orientation of the edge <PiP,iP>, that is, Or(CiP)=Or(iP)
-                PiP.makeDirty(Tree.IS_FILTHY);
-                CiP.makeDirty(Tree.IS_FILTHY);
-            } else { // iP is root
-                CiP.setParent(null); // completely remove <iP, CiP>
-                tree.setRootOnly(CiP);
-            }
-
-            // Attach to new location
-            boolean jLeft= (jP != null) && jP.getLeft().getNr() == j.getNr();
-
-            if (jP != null) {
-                Node CjP;
-                if (jLeft) {
-                    CjP = jP.getRight();
-                } else {
-                    CjP = jP.getLeft();
-                }
-                jP.removeChild(j);  // remove <jP, j>
-                iP.setParent(jP);
-                if (jLeft) {
-                    jP.setLeft(iP);
-                    jP.setRight(CjP);
-                } else {
-                    jP.setLeft(CjP);
-                    jP.setRight(iP);
-                } // add <jP, iP> keeping the orientation of the edge <jP, j>
-
-                jP.makeDirty(Tree.IS_FILTHY);
+        double oldHeightRange;
+        if (iP.isDirectAncestor()) {
+            oldHeightRange = 1;
+        }
+        else {
+            double oldMinAge = Math.max(i.getHeight(), CiP.getHeight());
+            if (iP.isRoot()) {
+                oldHeightRange = Math.exp(iP.getHeight() - oldMinAge);
             } else {
-                iP.setParent(null); // completely remove <PiP, iP>
-                tree.setRootOnly(iP);
-            }
-            j.setParent(iP);
-
-            if(newPossiblySymmetric){
-                if(newSymmetric){
-                    iP.setLeft(i);
-                    iP.setRight(j);
-                    tree.setNodeIsSymmetric(iP, true);
-                    iP.sort();
-                } else { // New event is asymmetric
-                    if(Randomizer.nextBoolean()){ // Randomly choose the orientation
-                        iP.setLeft(j);
-                        iP.setRight(i);
-                    } else {
-                        iP.setLeft(i);
-                        iP.setRight(j);
-                    }
-                }
-            } else {
-                if (attachingToSRange || (attachingToLeaf && !jLeft)) {
-                    iP.setLeft(j);
-                    iP.setRight(i);
-                } else {
-                    iP.setLeft(i);
-                    iP.setRight(j);
-                }
-            }
-
-            iP.makeDirty(Tree.IS_FILTHY);
-            j.makeDirty(Tree.IS_FILTHY);
-        } else {
-            // special case 1: iP = j when pruning from sampled ancestor iP and attaching to the branch above (PiP, iP)
-            // special case 2: CiP = j when pruning from a branch (PiP, CiP) and attaching to a leaf CiP
-            // In both cases the internal tree structure does not change, only the height of iP
-            if (iP.getNr() == j.getNr()) {
-                if (attachingToSRange) {
-                    //in special case 1: when attaching to the range
-                    //make i right
-                    //otherwise choose randomly
-                    iP.setLeft(CiP);
-                    iP.setRight(i);
-                } else {
-                    if(newSymmetric){
-                        iP.setLeft(i);
-                        iP.setRight(j);
-                        tree.setNodeIsSymmetric(iP, true);
-                        iP.sort();
-                    } else { // New event is asymmetric
-                        if(Randomizer.nextBoolean()){ // Randomly choose the orientation
-                            iP.setLeft(j);
-                            iP.setRight(i);
-                        } else {
-                            iP.setLeft(i);
-                            iP.setRight(j);
-                        }
-                    }
-                    iP.setLeft(i);
-                    iP.setRight(CiP);
-                }
-            }
-            if (CiP.getNr() == j.getNr()) {
-                if (PiP == null || PiP.getLeft().getNr() == iP.getNr()) {
-                    //in special case 2: when iP is not the root
-                    //make i the same orientation as iP
-                    //otherwise make i left
-                    // Is attachingToLeaf always true???
-                    iP.setLeft(i);
-                    iP.setRight(CiP);
-                } else {
-                    iP.setLeft(CiP);
-                    iP.setRight(i);
-                }
+                oldHeightRange = iP.getParent().getHeight() - oldMinAge;
             }
         }
-        iP.setHeight(newAge);
 
-        // remove or add nodes to the ranges
-        if (pruningFromSA) {
+        // Update
+
+        //  // Disconnect pruned
+        iP.removeChild(CiP);
+        if(iP.isRoot()){
+            CiP.setParent(null);
+            tree.setRootOnly(CiP);
+        } else {
+            Node PiP = iP.getParent();
+            if(PiP.getLeft().getNr() == iP.getNr()){ //Maintain orientation
+                PiP.setLeft(CiP);
+            } else {
+                PiP.setRight(CiP);
+            }
+            iP.setParent(null);
+        }
+        if(pruningFromSRange){
+            StratigraphicRange pruningRange = tree.getRangeOfNode(iP);
             pruningRange.removeNodeNr(iP.getNr());
             pruningRange.addNodeNr(CiP.getNr());
         }
-        if (attachingToLeaf) {
-            attachingRange.removeNodeNr(j.getNr());
-            attachingRange.addNodeNr(iP.getNr());
+        if(oldPossiblySymmetric){
+            tree.setNodeIsSymmetric(iP, false);
+        }
+        CiP.makeDirty(Tree.IS_FILTHY);
+
+        double newHeightRange;
+
+        if(j.isRoot()){
+            tree.setRootOnly(iP);
+            double delta = Randomizer.nextExponential(1.0);
+            iP.setHeight(j.getHeight() + delta);
+            newHeightRange = Math.exp(delta);
+        } else {
+            if(jP.getLeft().getNr() == j.getNr()){ //Maintain orientation
+                jP.setLeft(iP);
+            } else {
+                jP.setRight(iP);
+            }
+            if(attachingToLeaf){
+                iP.setHeight(j.getHeight());
+                newHeightRange = 1.0;
+            } else {
+                double minNewAge = Math.max(i.getHeight(), j.getHeight());
+                newHeightRange = jP.getHeight() - minNewAge;
+                iP.setHeight(minNewAge + Randomizer.nextDouble()*newHeightRange);
+            }
         }
 
-        //newDimension = nodeCount - tree.getDirectAncestorNodeCount() - 1;
-
-        newDimension = 0;
-        sRangeInternalNodeNrs = tree.getSRangesInternalNodeNrs();
-        for (int index=0; index<nodeCount; index++) {
-            Node node = tree.getNode(index);
-            //the node is not the root, it is not a sampled ancestor on a zero branch, it is not an internal node of a stratigraphic range
-            if (!node.isRoot() && !node.isDirectAncestor() && !sRangeInternalNodeNrs.contains(node.getNr()))
-                newDimension++;
+        if(Randomizer.nextBoolean()){
+            iP.setLeft(j); // TODO: In possibly symmetric, but asymmetric, orientation is unidentifiable?
+            iP.setRight(i);
+        } else {
+            iP.setLeft(i);
+            iP.setRight(j);
         }
-        dimensionCoefficient = (double) oldDimension / newDimension;
+        if(newPossiblySymmetric){
+            tree.setNodeIsSymmetric(iP, newSymmetric);
+        }
+        if(attachingToRange){
+            StratigraphicRange attachingRange = tree.getRangeOfNode(j);
+            attachingRange.addNodeNrAfter(jP.getNr(), iP.getNr());
+        }
+        if(attachingToLeaf){
+            StratigraphicRange attachingRange = tree.getRangeOfNode(j);
+            if(attachingRange != null){ // TODO: Why is this sometimes null?
+                attachingRange.removeNodeNr(j.getNr());
+                attachingRange.addNodeNr(iP.getNr());
+            }
+        }
 
+        int newEligibleNodeCount = getEligibleNodes(new HashSet<>(tree.getSRangesInternalNodeNrs())).size();
+
+        double dimensionCoefficient = ((double) eligibleNodeCount)/newEligibleNodeCount;
         double symmetryCoefficient = (oldPossiblySymmetric ? 0.5 : 1.0)/(newPossiblySymmetric ? 0.5 : 1.0);
         double orientationCoefficient = (oldSymmetric ? -2.0 : 1.0)/(newSymmetric ? 2.0 : 1.0);
 
-//        for (StratigraphicRange range:sRangeSet.getRanges()) {
-//            ArrayList<Node> nodes = (ArrayList) range.getNodes();
-//            for (int index=0; index< nodes.size(); index++) {
-//                Node node = nodes.get(index);
-//                int nodeNr = node.getNr();
-//                if (!tree.getNode(nodeNr).equals(node)) {
-//                    System.out.println("Node "+ node.toString() + " is not equal to " + tree.getNode(nodeNr));
-//                    System.out.println("in range " + range.getFirstOccurrenceID() + ". Resulting tree: ");
-//                    System.out.println(tree.getRoot().toString());
-//                    System.out.println("node i is " + i.getNr() + ", node j is " + j.getNr());
-//                }
-//            }
-//        }
-
-
-
-        fHastingsRatio = Math.abs(symmetryCoefficient * orientationCoefficient * dimensionCoefficient * newRange / oldRange);
+        double fHastingsRatio = Math.abs(symmetryCoefficient * orientationCoefficient * dimensionCoefficient * newHeightRange / oldHeightRange);
 
         return Math.log(fHastingsRatio);
+    }
 
+    private boolean eligibleTargetExists(Node i){
+        Node iP = i.getParent();
+        Node CiP = iP.getLeft().getNr() == i.getNr() ? iP.getRight() : iP.getLeft();
+        return !(iP.isRoot() && CiP.getHeight() <= i.getHeight()); // or only eligible is iP?
+    }
+
+
+    private List<Node> getEligibleNodes(Set<Integer> srangeInternalNodes){
+        return Arrays.stream(tree.getNodesAsArray())
+                .filter(n -> !n.isDirectAncestor()
+                        && !n.isRoot()
+                        && !srangeInternalNodes.contains(n.getNr()))
+                .collect(Collectors.toList());
+    }
+
+    private List<Node> getEligibleTargets(Node i){
+        return Arrays.stream(tree.getNodesAsArray())
+                .filter(n -> n.getNr() != i.getNr()
+                        && (n.isRoot() || n.getParent().getNr() != i.getParent().getNr())
+                        && (i.isRoot() || i.getParent().getNr() != n.getNr()) // TODO: Can we remove this condition by adding special case?
+                        && !n.isDirectAncestor()
+                        && n.getHeight() >= i.getHeight())
+                .collect(Collectors.toList());
     }
 }

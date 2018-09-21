@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<beast namespace="beast.core
+    :beast.evolution.alignment
+    :beast.evolution.tree.coalescent
+    :beast.evolution.tree
+    :beast.core.util
+    :beast.evolution.nuc
+    :beast.evolution.operators
+    :beast.evolution.sitemodel
+    :beast.evolution.substitutionmodel
+    :beast.evolution.likelihood
+    :beast.util
+    :beast.evolution.speciation
+    :beast.core.parameter" version="2.0">
+
+<run chainLength="1000000" id="mcmc" spec="MCMC">
+    <state id="state" storeEvery="1000">
+        <tree id="Tree.t:tree" spec="beast.evolution.tree.SRMixedTree" nodetype="beast.evolution.tree.SRMixedNode" name="stateNode">
+            <trait id="dateTrait.t:tree" spec="beast.evolution.tree.TraitSet" traitname="date-backward" value="
+                range0_only = 0.5,
+                range1_first = 2.0,
+                range1_last = 1.0,
+                range2_first = 1.5,
+                range2_last = 0.0">
+                <taxa id="TaxonSet.validationTaxa" spec="TaxonSet">
+                    <taxon spec="Taxon" id="range0_only"/>
+                    <taxon spec="Taxon" id="range1_first"/>
+                    <taxon spec="Taxon" id="range1_last"/>
+                    <taxon spec="Taxon" id="range2_first"/>
+                    <taxon spec="Taxon" id="range2_last"/>
+                </taxa>
+            </trait>
+            <taxonset idref="TaxonSet.validationTaxa"/>
+            <stratigraphicRange id="range0" spec="sranges.StratigraphicRange" firstOccurrence="@range0_only" lastOccurrence="@range0_only"/>
+            <stratigraphicRange id="range1" spec="sranges.StratigraphicRange" firstOccurrence="@range1_first" lastOccurrence="@range1_last"/>
+            <stratigraphicRange id="range2" spec="sranges.StratigraphicRange" firstOccurrence="@range2_first" lastOccurrence="@range2_last"/>
+        </tree>
+    </state>
+    
+    <init estimate="false" initial="@Tree.t:tree" spec="InitSRMixedTree" nodetype="beast.evolution.tree.SRMixedNode">
+        <stratigraphicRange idref="range0"/>
+        <stratigraphicRange idref="range1"/>
+        <stratigraphicRange idref="range2"/>
+        <parameter name="origin">3.0</parameter>
+    </init>
+
+    <distribution id="posterior" spec="util.CompoundDistribution">
+        <distribution spec="speciation.SRangesMixedBirthDeathModel" id="birthDeath" tree="@Tree.t:tree" conditionOnRhoSampling="true">
+            <parameter spec="RealParameter" name="origin" value="3.0" estimate="false"/>
+            <parameter spec="RealParameter" name="birthRate" value="1.0" estimate="false"/>
+            <parameter spec="RealParameter" name="deathRate" value="0.2" estimate="false"/>
+            <parameter spec="RealParameter" name="samplingRate" value="1.0" estimate="false"/>
+            <parameter spec="RealParameter" name="rho" value="0.8" estimate="false"/>
+            <parameter spec="RealParameter" name="removalProbability" value="0.0" estimate="false"/>
+            <parameter spec="RealParameter" name="symmetricSpeciationProbability" value="0.2" estimate="false"/>
+            <parameter spec="RealParameter" name="anageneticSpeciationRate" value="0.3" estimate="false"/>
+        </distribution>
+    </distribution>
+
+    <operator spec='operators.SymmetrySwap' weight="5" tree="@Tree.t:tree"/>
+    <operator spec='operators.LeftRightMixedChildSwap' weight="5" tree="@Tree.t:tree"/>
+    <operator spec='operators.SRMixedWilsonBalding' weight="20" tree="@Tree.t:tree"/>
+    <operator spec='SAUniform' weight="20" tree="@Tree.t:tree"/> <!-- TODO check if this one is safe. If not then remove -->
+    <operator id='treeScaler' spec='SAScaleOperator' scaleFactor=".95" weight="10.0" tree="@Tree.t:tree"/> <!-- TODO check if this one is safe. If not then remove -->
+    <operator id='rootScaler' spec='SAScaleOperator' scaleFactor=".95" weight="5.0" tree="@Tree.t:tree" rootOnly='true'/> <!-- TODO check if this one is safe. If not then remove -->
+    
+    <operator spec='SampledNodeDateRandomWalker' windowSize="1"  tree="@Tree.t:tree" weight="10">
+        <samplingDates id="samplingDate0" spec="beast.evolution.tree.SamplingDate" taxon="@range0_only" lower="0.0" upper="3.0"/>
+        <samplingDates id="samplingDate1.0" spec="beast.evolution.tree.SamplingDate" taxon="@range1_first" lower="0.0" upper="3.0"/>
+        <samplingDates id="samplingDate1.1" spec="beast.evolution.tree.SamplingDate" taxon="@range1_last" lower="0.0" upper="3.0"/>
+        <samplingDates id="samplingDate2.0" spec="beast.evolution.tree.SamplingDate" taxon="@range2_first" lower="0.0" upper="3.0"/>
+    </operator>
+
+    <logger fileName="sample-prior-mcmc.log" id="statslog" logEvery="1000" model="@posterior" sanitiseHeaders="true" sort="smart">
+        <log idref="birthDeath"/>
+        <log spec="sranges.SRMixedStatsLogger" tree="@Tree.t:tree"/>
+    </logger>
+
+    <logger id="screenlog" logEvery="1000">
+        <log idref="posterior"/>
+        <log arg="@posterior" id="ESS.0" spec="util.ESS"/>
+    </logger>
+
+</run>
+
+</beast>

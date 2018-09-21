@@ -12,6 +12,15 @@ abstract public class SRMixedTreeOperator extends Operator {
     final public Input<Boolean> markCladesInput = new Input<>("markclades", "Mark all ancestors of nodes changed by the operator as changed," +
             " up to the MRCA of all nodes changed by the operator.", false);
 
+
+    protected SRMixedTree tree;
+
+    @Override
+    public void initAndValidate(){
+        this.tree = treeInput.get();
+    }
+
+
     /**
      * @param parent the parent
      * @param child  the child that you want the sister of

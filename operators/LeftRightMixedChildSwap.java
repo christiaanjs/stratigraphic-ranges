@@ -43,7 +43,7 @@ public class LeftRightMixedChildSwap extends SRMixedTreeOperator {
                 if (!candidateNode.isLeaf() &&
                         !candidateNode.isFake() &&
                         !tree.belongToSameSRange(index, candidateNode.getLeft().getNr()) &&
-                        !tree.getNodeIsSymmetric(node))
+                        !tree.getNodeIsSymmetric(candidateNode))
                     allowableNodeIndices.add(index);
             }
 

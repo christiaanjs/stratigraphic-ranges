@@ -6,13 +6,7 @@ public class SRMixedNode extends Node {
 
     @Override
     public int sort()  {
-        SRMixedTree tree = (SRMixedTree) getTree();
-        if(tree.getNodeIsSymmetric(this)){
-            return super.sort();
-        } else {
-            throw new RuntimeException("Do not sort asymmetric nodes.");
-        }
-
+        throw new RuntimeException("Do not sort potentially asymmetric nodes.");
     }
 
     /**
@@ -39,10 +33,21 @@ public class SRMixedNode extends Node {
         leftChild.setParent(this, false);
     }
 
+    public void setLeft(final Node leftChild, boolean inOperator) {
+        super.setLeft(leftChild);
+        leftChild.setParent(this, inOperator);
+    }
+
     @Override
     public void setRight(final Node rightChild) {
         super.setRight(rightChild);
         rightChild.setParent(this, false);
     }
+
+    public void setRight(final Node rightChild, boolean inOperator) {
+        super.setRight(rightChild);
+        rightChild.setParent(this, inOperator);
+    }
+
 
 }

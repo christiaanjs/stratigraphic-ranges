@@ -5,6 +5,7 @@ import beast.evolution.tree.Node;
 import beast.evolution.tree.SRMixedNode;
 import beast.evolution.tree.SRMixedTree;
 import beast.util.Randomizer;
+import javafx.util.Pair;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -142,17 +143,8 @@ public class SRMixedTreeSimulator {
         }
     }
 
-    public int numberNodes(){
-        return numberNodes(root, 0);
-    }
-
-    public int numberNodes(Node node, int counter){
-        if(!node.isLeaf()){
-            for(Node child: node.getChildren())
-                counter = numberNodes(child, counter);
-        }
-        node.setNr(counter++);
-        return counter;
+    public Pair<Integer, Integer> numberNodes(){
+        return SRangesUtil.numberNodes(root);
     }
 
     private List<Node> createNewStratigraphicRange(Node node){

@@ -26,17 +26,13 @@ public class SRMixedTree extends SRTree {
         initSymmetric();
     }
 
-    private void initSymmetric(){
+    protected void initSymmetric(){
         nodeIsSymmetric = new boolean[getNodeCount()];
+        storedNodeIsSymmetric = new boolean[getNodeCount()];
     }
 
     private void storeSymmetric(){
         System.arraycopy(nodeIsSymmetric, 0, storedNodeIsSymmetric, 0, nodeIsSymmetric.length);
-    }
-
-    private void initStoredSymmetric(){
-        storedNodeIsSymmetric = new boolean[getNodeCount()];
-        storeSymmetric();
     }
 
     private void assignSymmetric(boolean[] otherSymmetric){
