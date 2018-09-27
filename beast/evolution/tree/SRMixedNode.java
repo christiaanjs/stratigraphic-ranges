@@ -1,5 +1,7 @@
 package beast.evolution.tree;
 
+import sranges.StratigraphicRange;
+
 import java.util.TreeMap;
 
 public class SRMixedNode extends Node {
@@ -47,6 +49,39 @@ public class SRMixedNode extends Node {
     public void setRight(final Node rightChild, boolean inOperator) {
         super.setRight(rightChild);
         rightChild.setParent(this, inOperator);
+    }
+
+    public String toShortNewick(final boolean printInternalNodeNumbers) {
+        final StringBuilder buf = new StringBuilder();
+
+        if (!isLeaf()) {
+            buf.append("(");
+            boolean isFirst = true;
+            for (Node child : getChildren()) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    buf.append(",");
+                buf.append(child.toShortNewick(printInternalNodeNumbers));
+            }
+            buf.append(")");
+        }
+
+        if (isLeaf() || printInternalNodeNumbers) {
+            buf.append(getNr());
+        }
+        if(getID() != null){
+            buf.append("/").append(getID());
+        }
+        SRTree tree = (SRTree) getTree();
+        StratigraphicRange range = tree.getRangeOfNode(this);
+        if(range != null){
+            buf.append("/").append(range.getID());
+        }
+
+        buf.append(getNewickMetaData());
+        buf.append(":").append(getNewickLengthMetaData()).append(getLength());
+        return buf.toString();
     }
 
 

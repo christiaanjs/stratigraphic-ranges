@@ -1,22 +1,16 @@
 package sranges;
 
-import beast.core.Loggable;
 import beast.evolution.tree.SRMixedTree;
 import beast.util.Randomizer;
 import javafx.util.Pair;
 
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class SRSimulationApp {
@@ -27,15 +21,15 @@ public class SRSimulationApp {
         double mu = 0.2;
         double psi = 1.0;
         double rho = 0.8;
-        double beta = 0.2;
-        double lambda_a = 0.3;
+        double beta = 0.0;
+        double lambda_a = 0.0;
         double[] simArgs = new double[]{x0, lambda, mu, psi, rho, beta, lambda_a};
 
         Randomizer.setSeed(123);
 
-        int nSims = 10;
-        int printSimsEvery = 10000;
-        int printAcceptedEvery = 1;
+        int nSims = 10000;
+        int printSimsEvery = 1000000;
+        int printAcceptedEvery = 100;
         int numberOfRanges = 3;
 
         List<Pair<Boolean, Integer>> targetRanges = new ArrayList<>(numberOfRanges); // Has rho samples, number of samples
@@ -59,7 +53,7 @@ public class SRSimulationApp {
 
         sortAndAddRangeIds(initTree);
 
-        SRMixedStatsLogger logger = new SRMixedStatsLogger(initTree);
+        SRStatsLogger logger = new SRStatsLogger(initTree);
         String outFile = "conditioned-sranges.log";
         PrintStream out = new PrintStream(outFile);
 

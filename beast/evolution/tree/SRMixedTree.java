@@ -42,17 +42,13 @@ public class SRMixedTree extends SRTree {
     @Override
     public void assignFrom(StateNode other){
         super.assignFrom(other);
-        final SRMixedTree tree = (SRMixedTree) other;
         initSymmetric();
-        assignSymmetric(tree.nodeIsSymmetric);
     }
 
     @Override
     public void assignFromFragile(StateNode other){
         super.assignFromFragile(other);
-        final SRMixedTree tree = (SRMixedTree) other;
         initSymmetric();
-        assignSymmetric(tree.nodeIsSymmetric);
 
     }
 

@@ -1,5 +1,7 @@
 package beast.evolution.tree;
 
+import sranges.StratigraphicRange;
+
 import java.util.TreeMap;
 
 /**
@@ -28,5 +30,38 @@ public class SRNode extends Node {
     @Override
     public int sort()  {
         throw new RuntimeException("Do not sort ordered trees. Calculation stopped.");
+    }
+
+    public String toShortNewick(final boolean printInternalNodeNumbers) {
+        final StringBuilder buf = new StringBuilder();
+
+        if (!isLeaf()) {
+            buf.append("(");
+            boolean isFirst = true;
+            for (Node child : getChildren()) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    buf.append(",");
+                buf.append(child.toShortNewick(printInternalNodeNumbers));
+            }
+            buf.append(")");
+        }
+
+        if (isLeaf() || printInternalNodeNumbers) {
+            buf.append(getNr());
+        }
+        if(getID() != null){
+            buf.append("/").append(getID());
+        }
+        SRTree tree = (SRTree) getTree();
+        StratigraphicRange range = tree.getRangeOfNode(this);
+        if(range != null){
+            buf.append("/").append(range.getID());
+        }
+
+        buf.append(getNewickMetaData());
+        buf.append(":").append(getNewickLengthMetaData()).append(getLength());
+        return buf.toString();
     }
 }

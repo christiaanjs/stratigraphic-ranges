@@ -2,6 +2,7 @@ package sranges;
 
 import beast.evolution.tree.Node;
 import beast.evolution.tree.SRMixedTree;
+import beast.evolution.tree.SRTree;
 import javafx.util.Pair;
 
 import java.util.Comparator;
@@ -14,11 +15,11 @@ public class SRangesUtil {
     public static final Comparator<Pair<Boolean, Integer>> CANONICAL_ORDER = comparing((Pair<Boolean, Integer> p) -> p.getKey())
             .thenComparing(p -> p.getValue());
 
-    public static final Function<StratigraphicRange, Pair<Boolean, Integer>> getPredicateMapper(SRMixedTree tree){
+    public static final Function<StratigraphicRange, Pair<Boolean, Integer>> getPredicateMapper(SRTree tree){
         return r -> new Pair<>(tree.rangeHasRhoSample(r), r.getNodeNrs().size());
     }
 
-    public static final Comparator<StratigraphicRange> getCanonicalOrder(SRMixedTree tree){
+    public static final Comparator<StratigraphicRange> getCanonicalOrder(SRTree tree){
         Function<StratigraphicRange, Pair<Boolean, Integer>> mapper = getPredicateMapper(tree);
         return (r1, r2) -> CANONICAL_ORDER.compare(mapper.apply(r1), mapper.apply(r2));
     }

@@ -116,11 +116,10 @@ public class SRangesMixedBirthDeathModel extends SRangesBirthDeathModel {
                     }
                 } else { // Speciation event
                     logPost += Math.log(lambda) - log_q(node.getHeight(), c1, c2);
-                    logPost += mixedTree.getNodeIsSymmetric(node) ? Math.log(2) + beta : (1 - beta); // Marginalise orientation
+                    logPost += mixedTree.getNodeIsSymmetric(node) ? Math.log(2) + Math.log(beta) : Math.log(1 - beta); // Marginalise orientation
                 }
             }
         }
-
         for (StratigraphicRange range: mixedTree.getSRanges()) {
             Node first =  tree.getNode(range.getNodeNrs().get(0));
             if (!range.isSingleFossilRange()) {

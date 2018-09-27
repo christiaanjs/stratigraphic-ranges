@@ -129,7 +129,7 @@ public class SRangesBirthDeathModel extends SABirthDeathModel {
                 if  (!node.isDirectAncestor())  {
                     if (node.getHeight() > 0.000000000005 || rho == 0.) {
                         Node fossilParent = node.getParent();
-                        if (((SRTree)tree).belongToSameSRange(i, fossilParent.getNr())) {
+                        if (fossilParent != null && ((SRTree)tree).belongToSameSRange(i, fossilParent.getNr())) {
                             logPost += Math.log(psi) + log_q_tilde(node.getHeight(), c1, c2) + log_p0s(node.getHeight(), c1, c2);
                         } else {
                             logPost += Math.log(psi) + log_q(node.getHeight(), c1, c2) + log_p0s(node.getHeight(), c1, c2);
@@ -138,8 +138,8 @@ public class SRangesBirthDeathModel extends SABirthDeathModel {
                         logPost += Math.log(4*rho);
                     }
                 }
-            } else {
-                if (node.isFake()) {
+            }  else {
+                if (node.isFake() || node.isRoot()) {
                     logPost += Math.log(psi);
                     Node parent = node.getParent();
                     Node child = node.getNonDirectAncestorChild();
@@ -155,6 +155,7 @@ public class SRangesBirthDeathModel extends SABirthDeathModel {
             }
         }
 
+        double[] srangeContributions = new double[((SRTree)tree).getSRanges().size()];
         for (StratigraphicRange range:((SRTree)tree).getSRanges()) {
             Node first =  tree.getNode(range.getNodeNrs().get(0));
             if (!range.isSingleFossilRange()) {
@@ -169,6 +170,7 @@ public class SRangesBirthDeathModel extends SABirthDeathModel {
                 logPost += log_lambda_times_int_limits_p(tOld, tYoung, c1, c2);
             }
         }
+
 
         return logPost;
     }

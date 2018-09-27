@@ -3,7 +3,7 @@ package sranges;
 import beast.core.CalculationNode;
 import beast.core.Input;
 import beast.core.Loggable;
-import beast.evolution.tree.SRMixedTree;
+import beast.evolution.tree.SRTree;
 import javafx.util.Pair;
 
 import java.io.PrintStream;
@@ -12,21 +12,21 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public class SRMixedStatsLogger extends CalculationNode implements Loggable {
-    public Input<SRMixedTree> treeInput = new Input<>("tree", "Mixed mode stratigraphic range tree to calculate statistics from",
+public class SRStatsLogger extends CalculationNode implements Loggable {
+    public Input<SRTree> treeInput = new Input<>("tree", "Mixed mode stratigraphic range tree to calculate statistics from",
             Input.Validate.REQUIRED);
 
-    private SRMixedTree tree;
+    private SRTree tree;
     private List<StratigraphicRange> sranges;
 
-    public SRMixedStatsLogger(){}
+    public SRStatsLogger(){}
 
-    public SRMixedStatsLogger(SRMixedTree tree){
+    public SRStatsLogger(SRTree tree){
         this.tree = tree;
         initSranges();
     }
 
-    public void setTree(SRMixedTree tree){
+    public void setTree(SRTree tree){
         this.tree = tree;
         tree.getLeafNodeCount(); // Ensure leaf node count has been cached
         initSranges();

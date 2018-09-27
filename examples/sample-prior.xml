@@ -13,9 +13,9 @@
     :beast.evolution.speciation
     :beast.core.parameter" version="2.0">
 
-<run chainLength="1000000" id="mcmc" spec="MCMC">
-    <state id="state" storeEvery="1000">
-        <tree id="Tree.t:tree" spec="beast.evolution.tree.SRMixedTree" nodetype="beast.evolution.tree.SRMixedNode" name="stateNode">
+<run chainLength="20000000" id="mcmc" spec="MCMC">
+    <state id="state" storeEvery="5000">
+        <tree id="Tree.t:tree" spec="beast.evolution.tree.SRTree" nodetype="beast.evolution.tree.SRNode" name="stateNode">
             <trait id="dateTrait.t:tree" spec="beast.evolution.tree.TraitSet" traitname="date-backward" value="
                 range0_only = 0.5,
                 range1_first = 2.0,
@@ -37,7 +37,7 @@
         </tree>
     </state>
     
-    <init estimate="false" initial="@Tree.t:tree" spec="InitSRMixedTree" nodetype="beast.evolution.tree.SRMixedNode">
+    <init estimate="false" initial="@Tree.t:tree" spec="beast.evolution.tree.InitSRTree" nodetype="beast.evolution.tree.SRNode">
         <stratigraphicRange idref="range0"/>
         <stratigraphicRange idref="range1"/>
         <stratigraphicRange idref="range2"/>
@@ -45,21 +45,19 @@
     </init>
 
     <distribution id="posterior" spec="util.CompoundDistribution">
-        <distribution spec="speciation.SRangesMixedBirthDeathModel" id="birthDeath" tree="@Tree.t:tree" conditionOnRhoSampling="true">
+        <distribution spec="speciation.SRangesBirthDeathModel" id="birthDeath" tree="@Tree.t:tree" conditionOnRhoSampling="true">
             <parameter spec="RealParameter" name="origin" value="3.0" estimate="false"/>
             <parameter spec="RealParameter" name="birthRate" value="1.0" estimate="false"/>
             <parameter spec="RealParameter" name="deathRate" value="0.2" estimate="false"/>
             <parameter spec="RealParameter" name="samplingRate" value="1.0" estimate="false"/>
             <parameter spec="RealParameter" name="rho" value="0.8" estimate="false"/>
             <parameter spec="RealParameter" name="removalProbability" value="0.0" estimate="false"/>
-            <parameter spec="RealParameter" name="symmetricSpeciationProbability" value="0.2" estimate="false"/>
-            <parameter spec="RealParameter" name="anageneticSpeciationRate" value="0.3" estimate="false"/>
         </distribution>
     </distribution>
 
-    <operator spec='operators.SymmetrySwap' weight="5" tree="@Tree.t:tree"/>
-    <operator spec='operators.LeftRightMixedChildSwap' weight="5" tree="@Tree.t:tree"/>
-    <operator spec='operators.SRMixedWilsonBalding' weight="20" tree="@Tree.t:tree"/>
+    <!--<operator spec='operators.SymmetrySwap' weight="5" tree="@Tree.t:tree"/>-->
+    <operator spec='operators.LeftRightChildSwap' weight="5" tree="@Tree.t:tree"/>
+    <operator spec='operators.SRWilsonBalding' weight="20" tree="@Tree.t:tree"/>
     <operator spec='SAUniform' weight="20" tree="@Tree.t:tree"/> <!-- TODO check if this one is safe. If not then remove -->
     <operator id='treeScaler' spec='SAScaleOperator' scaleFactor=".95" weight="10.0" tree="@Tree.t:tree"/> <!-- TODO check if this one is safe. If not then remove -->
     <operator id='rootScaler' spec='SAScaleOperator' scaleFactor=".95" weight="5.0" tree="@Tree.t:tree" rootOnly='true'/> <!-- TODO check if this one is safe. If not then remove -->
@@ -73,7 +71,7 @@
 
     <logger fileName="sample-prior-mcmc.log" id="statslog" logEvery="1000" model="@posterior" sanitiseHeaders="true" sort="smart">
         <log idref="birthDeath"/>
-        <log spec="sranges.SRMixedStatsLogger" tree="@Tree.t:tree"/>
+        <log spec="sranges.SRStatsLogger" tree="@Tree.t:tree"/>
     </logger>
 
     <logger id="screenlog" logEvery="1000">
